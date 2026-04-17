@@ -8,15 +8,18 @@ exec 3<> "$PIPE"
 # 后台进程：不断读取风扇转速并传给管道
 (
     while true; do
+        # 从系统中抓取数据
         SPEED=$(grep "speed:" /proc/acpi/ibm/fan | awk '{print $2}')
         LEVEL=$(grep "level:" /proc/acpi/ibm/fan | awk '{print $2}')
         STATUS=$(grep "status:" /proc/acpi/ibm/fan | awk '{print $2}')
         
-        # 将数据发送到 yad 列表
-        # 格式：第一列图标，第二列属性，第三列数值
-        echo "1: 当前转速: $SPEED RPM" >&3
-        echo "1:⚙️ 运行模式: $LEVEL" >&3
-        echo "1: 运行状态: $STATUS" >&3
+        # 使用 @clear 清空并重新发送数据
+        # 使用标准 Emoji 代替特殊字体图标，避免乱码
+        printf "@clear\n🚀 项目\n📊 数值\n" >&3
+        printf "🌀 当前转速\n%s RPM\n" "$SPEED" >&3
+        printf "⚙️ 运行模式\n%s\n" "$LEVEL" >&3
+        printf "✅ 运行状态\n%s\n" "$STATUS" >&3
+        
         sleep 1
     done
 ) &
@@ -26,12 +29,13 @@ LOOP_PID=$!
 trap "kill $LOOP_PID; rm '$PIPE'" EXIT
 
 # 显示界面
+# 使用双列显示，左侧是项目，右侧是具体数值
 yad --title="ThinkPad 散热控制" \
     --window-icon=utilities-system-monitor \
-    --width=350 --height=250 --center \
-    --text="\n<span size='large'><b>系统状态监控</b></span>\n" \
+    --width=350 --height=280 --center \
+    --text="\n<span size='large'><b>系统状态实时监控</b></span>\n" \
     --list \
-    --column="图标:IMG" --column="状态信息:TEXT" \
+    --column="项目:TEXT" --column="数值:TEXT" \
     --no-headers \
     --listen <&3 \
     --button="🚀 狂暴起飞!":1 \
@@ -40,7 +44,7 @@ yad --title="ThinkPad 散热控制" \
 
 choice=$?
 
-# 执行命令
+# 执行风扇控制命令
 if [ $choice -eq 1 ]; then
     echo level disengaged | sudo tee /proc/acpi/ibm/fan > /dev/null
 elif [ $choice -eq 2 ]; then
