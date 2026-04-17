@@ -5,38 +5,36 @@ PIPE=$(mktemp -u)
 mkfifo "$PIPE"
 exec 3<> "$PIPE"
 
-# 后台进程：不断读取风扇转速并传给管道
+# 后台进程：不断读取系统数据并精准更新表单字段
 (
     while true; do
-        # 从系统中抓取数据
         SPEED=$(grep "speed:" /proc/acpi/ibm/fan | awk '{print $2}')
         LEVEL=$(grep "level:" /proc/acpi/ibm/fan | awk '{print $2}')
         STATUS=$(grep "status:" /proc/acpi/ibm/fan | awk '{print $2}')
         
-        # 使用 @clear 清空并重新发送数据
-        # 使用标准 Emoji 代替特殊字体图标，避免乱码
-        printf "@clear\n🚀 项目\n📊 数值\n" >&3
-        printf "🌀 当前转速\n%s RPM\n" "$SPEED" >&3
-        printf "⚙️ 运行模式\n%s\n" "$LEVEL" >&3
-        printf "✅ 运行状态\n%s\n" "$STATUS" >&3
+        # 1:VALUE 表示更新表单中的第 1 个字段，以此类推
+        echo "1:$SPEED RPM" >&3
+        echo "2:$LEVEL" >&3
+        echo "3:$STATUS" >&3
         
         sleep 1
     done
 ) &
 LOOP_PID=$!
 
-# 退出时清理后台进程和管道
+# 退出时清理
 trap "kill $LOOP_PID; rm '$PIPE'" EXIT
 
-# 显示界面
-# 使用双列显示，左侧是项目，右侧是具体数值
+# 显示界面：使用表单模式 (--form)
+# :RO 表示只读字段 (Read-Only)，用户不能修改数值
 yad --title="ThinkPad 散热控制" \
     --window-icon=utilities-system-monitor \
-    --width=350 --height=280 --center \
-    --text="\n<span size='large'><b>系统状态实时监控</b></span>\n" \
-    --list \
-    --column="项目:TEXT" --column="数值:TEXT" \
-    --no-headers \
+    --width=300 --height=200 --center \
+    --text="\n<span size='large'><b>风扇状态实时监控</b></span>\n" \
+    --form \
+    --field="🌀 当前转速":RO \
+    --field="⚙️ 运行模式":RO \
+    --field="✅ 运行状态":RO \
     --listen <&3 \
     --button="🚀 狂暴起飞!":1 \
     --button="🍃 恢复自动":2 \
@@ -44,7 +42,7 @@ yad --title="ThinkPad 散热控制" \
 
 choice=$?
 
-# 执行风扇控制命令
+# 执行控制命令
 if [ $choice -eq 1 ]; then
     echo level disengaged | sudo tee /proc/acpi/ibm/fan > /dev/null
 elif [ $choice -eq 2 ]; then
