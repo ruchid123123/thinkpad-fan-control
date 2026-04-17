@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=散热控制
+Comment=ThinkPad 风扇模式切换
+Exec=bash -c "$HOME/.local/bin/fan-control.sh"
+Icon=utilities-system-monitor
+Type=Application
+Terminal=false
+Categories=System;Settings;
